@@ -7,7 +7,7 @@ use Date::Manip;
 Date::Interval->setDisplayFormat("%Y-%m-%d"); # To make it more readable to my self
 &Date_Init("DateFormat=non-US");
 $, = ',';
-print "1..8\n";
+print "1..6\n";
 $n = 1;
 
 my $int201 = new Date::Interval ("10/10/97", "20/10/97"); 
@@ -22,41 +22,19 @@ my $int210 = new Date::Interval ("20/10/97", "20/10/97");
 my $int211 = new Date::Interval ("14/10/97", "14/10/97");
 
 $rt = $int201->getOverlap ($int204);
-if($rt->get eq '[1997-10-10, 1997-10-20)')
-{print "ok $n\n";} else {print "not ok $n\n";}
-$n++;
+if ($rt->get eq '[1997-10-10, 1997-10-20)') {print "ok $n\n";} else {print "not ok $n\n";} $n++;
 
 $rt = $int201->getOverlap ($int205);
-if($rt->get eq '[1997-10-10, 1997-10-15)')
-{print "ok $n\n";} else {print "not ok $n\n";}
-$n++;
+if ($rt->get eq '[1997-10-10, 1997-10-15)') {print "ok $n\n";} else {print "not ok $n\n";} $n++;
 
 $rt = $int201->getOverlap ($int206);
-if($rt->get eq '[1997-10-10, 1997-10-15)')
-{print "ok $n\n";} else {print "not ok $n\n";}
-$n++;
+if ($rt->get eq '[1997-10-10, 1997-10-15)') {print "ok $n\n";} else {print "not ok $n\n";} $n++;
 
 $rt = $int201->getOverlap ($int207);
-if($rt->get eq '[1997-10-15, 1997-10-20)')
-{print "ok $n\n";} else {print "not ok $n\n";}
-$n++;
+if ($rt->get eq '[1997-10-15, 1997-10-20)') {print "ok $n\n";} else {print "not ok $n\n";} $n++;
 
 $rt = $int201->getOverlap ($int208);
-if($rt->get eq '[1997-10-12, 1997-10-14)')
-{print "ok $n\n";} else {print "not ok $n\n";}
-$n++;
+if ($rt->get eq '[1997-10-12, 1997-10-14)') {print "ok $n\n";} else {print "not ok $n\n";} $n++;
 
 $rt = $int201->getOverlap ($int211);
-if($rt->get eq '[1997-10-14, 1997-10-14)')
-{print "ok $n\n";} else {print "not ok $n\n";}
-$n++;
-
-$date1 = &ParseDate("10/10/97");
-$date2 = &ParseDate("20/10/97");
-$int201 = new Date::Interval ("10/10/97", "20/10/97"); 
-if($int201->getStart eq $date1)
-{print "ok $n\n";} else {print "not ok $n\n";}
-$n++;
-if($int201->getStop eq $date2)
-{print "ok $n\n";} else {print "not ok $n\n";}
-$n++;
+if ($rt->get eq '[1997-10-14, 1997-10-14)') {print "ok $n\n";} else {print "not ok $n\n";} $n++;

@@ -1,21 +1,27 @@
 #!perl -w
-#------------------------------------------------------------------------------
-#
-# Copyright (C) 1997 by Kristian Torp, torp@cs.auc.dk
-# 
-#    This program is free software. You can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation; either version 2 of the License, or
-#    (at your option) any later version.
-# 
-#    This program is distributed AS IS in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY. See the GNU General Public License for more 
-#    details.
-#
-#------------------------------------------------------------------------------
+
+=head1 NAME
+
+Date::Interval - handling of temporal intervals based on Date::Manip
+
+=head1 COPYRIGHT
+
+Copyright (C) 1997 by Kristian Torp, <F<torp@cs.auc.dk>>
+
+This program is free software. You can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or (at
+your option) any later version.
+
+This program is distributed AS IS in the hope that it will be useful,
+but WITHOUT ANY WARRANTY. See the GNU General Public License for more
+details.
+
+=cut
 
 package Date::Interval;
-require Exporter;
+
+use Exporter;
 use strict;
 use vars qw (@ISA @EXPORT @EXPORT_OK $VERSION
 	     $FALSE $TRUE $ABSOLUTE $RELATIVE
@@ -28,16 +34,17 @@ use vars qw (@ISA @EXPORT @EXPORT_OK $VERSION
 	     $ALLEN_DURING $ALLEN_FINISHES $ALLEN_RIGHT_OVERLAPS
 	     $ALLEN_EXTENDS $ALLEN_AFTER
 	     $DisplayFormat $DefaultType $Now); 
-@ISA    = qw (Exporter);
-@EXPORT = qw ();
+@ISA       = qw (Exporter);
+@EXPORT    = qw ();
 @EXPORT_OK = qw ($CLOSED_INT $RIGHT_OPEN_INT $LEFT_OPEN_INT $OPEN_INT
 		 $BEFORE $MEETS $LEFT_OVERLAPS $RIGHT_OVERLAPS
 		 $TOTALLY_OVERLAPS $DURING $EXTENDS $AFTER
-		 $ALLEN_BEFORE $ALLEN_MEETS $ALLEN_LEFT_OVERLAPS $ALLEN_LEFT_COVERS
-		 $ALLEN_COVERS $ALLEN_STARTS $ALLEN_EQUALS $ALLEN_RIGHT_COVERS 
+		 $ALLEN_BEFORE $ALLEN_MEETS $ALLEN_LEFT_OVERLAPS 
+		 $ALLEN_LEFT_COVERS $ALLEN_COVERS $ALLEN_STARTS 
+		 $ALLEN_EQUALS $ALLEN_RIGHT_COVERS 
 		 $ALLEN_DURING $ALLEN_FINISHES $ALLEN_RIGHT_OVERLAPS
 		 $ALLEN_EXTENDS $ALLEN_AFTER);
-$VERSION = 0.02;
+$VERSION = 0.03;
 
 use Date::Manip; # data types of the end points in the interval
 use Carp;
@@ -116,19 +123,42 @@ $DisplayFormat = "%d/%m/%Y";                 # Default <display format>
 $DefaultType   = $RIGHT_OPEN_INT;            # Default <interval type>
 $Now           = &_getCurrentTime ($FALSE);  # Big brother time, see POD 
                 
-##############################################################################
+################################################################################
 # Class Methods
-##############################################################################
+################################################################################
+
+=head1 Class Methods
+
+=head2 setDefaultIntervalType
+
+  Description: Sets the default <interval type>
+  Input:       <interval type>
+  Output:      none
+
+=cut
 
 sub setDefaultIntervalType
 {
-    my $class = shift;
-    my ($nType) = @_;
+    my ($class, $nType) = @_;
     
-    if (ref ($class))             { confess "Class method called as object method"; }
-    if ($nType < 1 || $nType > 4) { confess "Unknown <interval type> $nType"; }
+    if (ref ($class))             
+    { 
+	confess "Class method called as object method"; 
+    }
+    if ($nType < 1 || $nType > 4)
+    { 
+	confess "Unknown <interval type> $nType"; 
+    }
     $DefaultType = $nType;
 }
+
+=head2 getDefaultIntervalType
+
+  Description: Gets the default <interval type>
+  Input:       none
+  Output:      <interval type>
+
+=cut
 
 sub getDefaultIntervalType
 { 
@@ -137,13 +167,29 @@ sub getDefaultIntervalType
     return $DefaultType;
 }
 
+=head2 setDisplayFormat
+
+  Description: Sets the default <display format>
+  Input:       <display format>
+  Output:      none
+
+=cut
+
 sub setDisplayFormat
 {
-    my $class = shift;
-    if (ref ($class)) { confess "Class method called as object method"; }
+    my ($class) = shift;
+    if (ref ($class))  { confess "Class method called as object method";  }
     unless (@_ == 1)  { confess "usage: Interval->setDisplayFormat(<string>)"; }
     $DisplayFormat = shift;
 }
+
+=head2 getDisplayFormat
+
+  Description: Gets the default <display format>
+  Input:       none
+  Output:      <display format>
+
+=cut
 
 sub getDisplayFormat
 { 
@@ -152,9 +198,9 @@ sub getDisplayFormat
     return $DisplayFormat;
 }
 
-#-----------------------------------------------------------------------------
-# Instance variables
-#-----------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# Instance Variables
+#-------------------------------------------------------------------------------
 
 my %fields = (m_nStart => undef,   # Start value
               m_nStop  => undef,   # Stop value
@@ -164,140 +210,49 @@ my %fields = (m_nStart => undef,   # Start value
 	      m_nRight => undef,   # Right open or closed <interval end>
 	      m_bEmpty => undef);  # is the interval empty
 
-#-----------------------------------------------------------------------------
-# Initialization
-# Input:  start value stop value [<interval type>]
-#-----------------------------------------------------------------------------
-   
+#-------------------------------------------------------------------------------
+# Public Methods
+#-------------------------------------------------------------------------------
+
+=head1 Public Methods
+
+=head2 new
+
+  Description: Constructor
+  Input:       <start value> <stop value> [<interval type>]
+  Output:      reference   
+
+=cut
+
 sub new
 {
-    my $proto = shift;
-    my $class = ref ($proto) || $proto;
-    my $self = {};
+    my ($proto) = shift;
+
+    my ($class) = ref ($proto) || $proto;
+    my ($self)  = {};
     bless ($self, $class);
+
     $self->_initialize (@_);
     return $self;
 }
- 
-sub _initialize
-{
-    my $self = shift;
-    my($szStart, $szStop, $nType) = @_;
 
-    $self->{m_bEmpty} = $FALSE;
+=head2 length
 
-    # Parse the interval end points
-    ($self->{m_nStart},	$self->{m_bStart}) = _getEndPoint($szStart);
-    if (!defined ($self->{m_nStart})) 
-    { 
-	print STDERR "Problems using $szStart as start value\n"; 
-	$self->{m_bEmpty} = $TRUE;
-    }
+  Description: Returns the Length of an interval in Date::Manip format
+  Input:       none
+  Output:      <delta>
 
-    ($self->{m_nStop},	$self->{m_bStop}) = _getEndPoint($szStop);
-    if (!defined ($self->{m_nStop})) 
-    { 
-	print STDERR "Problems using $szStop as stop value\n"; 
-	$self->{m_bEmpty} = $TRUE;
-    }
+=cut
 
-    # Check the end point values
-    my $start = _to_date ($FALSE, $self->{m_bStart}, $self->{m_nStart});
-    my $stop  = _to_date ($TRUE,  $self->{m_bStop}, $self->{m_nStop}, $self->{m_bStart}, $start);
-
-    if ($self->{m_bStop} == $ABSOLUTE && $start gt $stop)
-    {
-	die "Start date larger than stop date\n";
-    }
-    
-    # Use the default <interval type>?
-    if (!defined($nType)) { $nType = $DefaultType; }
-    if (!$self->_setIntervalType ($nType)) 
-    {
-	print STDERR "Problems setting the <interval type> $nType\n";
-    }
-}
-
-#-----------------------------------------------------------------------------
-# Creates a new empty interval
-# Input:  none
-# Output: empty <interval>
-#-----------------------------------------------------------------------------
-
-sub _new_empty
-{
-    my $proto = shift;
-    my $class = ref ($proto) || $proto;
-    my $self = {};
-    bless ($self, $class);
-    $self->{m_bEmpty} = $TRUE;
-    return $self;
-}
-
-#-----------------------------------------------------------------------------
-# Sets the <interval type>
-# Input:  <interval type>
-# Output: boolean
-#-----------------------------------------------------------------------------
-
-sub _setIntervalType
-{
-    my $self = shift;
-    my ($nType) = @_;
-    
-    if ($nType == $CLOSED_INT) 
-    {
-	$self->{m_nLeft}  = $CLOSED;
-	$self->{m_nRight} = $CLOSED; 
-    }
-    elsif ($nType == $RIGHT_OPEN_INT) 
-    {
-	$self->{m_nLeft}  = $CLOSED;
-	$self->{m_nRight} = $OPEN; 
-    }
-    elsif ($nType == $LEFT_OPEN_INT) 
-    {
-	$self->{m_nLeft}  = $OPEN;
-	$self->{m_nRight} = $CLOSED; 
-    }
-    elsif ($nType == $OPEN_INT) 
-    {
-	$self->{m_nLeft}  = $OPEN;
-	$self->{m_nRight} = $OPEN; 
-    }
-    else
-    {
-	return $FALSE;
-    }
-    return $TRUE;
-}
-
-#-----------------------------------------------------------------------------
-# Sets the interval brackets
-# Input:  <interval end> <interval end>
-# Output: boolean
-#-----------------------------------------------------------------------------
-
-sub _setBrackets
-{
-    my $self = shift;
-    my ($nLeft, $nRight) = @_;
-    $self->{m_nLeft}  = $nLeft;
-    $self->{m_nRight} = $nRight;
-    return $TRUE;
-}
-
-#-----------------------------------------------------------------------------
-# Length of interval in Date::Manip format
-# Input:  none
-# Output: <delta>
-#-----------------------------------------------------------------------------
- 
 sub length
 {
-    my $self = shift;
+    my ($self) = shift;
+
     # Return 0 length 
-    if ($self->{m_bEmpty}) { return &DateCalc (&_getCurrentTime($TRUE), &_getCurrentTime($TRUE)); }
+    if ($self->{m_bEmpty}) 
+    { 
+	return &DateCalc (&_getCurrentTime($TRUE), &_getCurrentTime($TRUE)); 
+    }
     
     my ($startDate) = _to_date ($FALSE, $self->{m_bStart}, $self->{m_nStart});
     my ($stopDate)  = _to_date ($TRUE, $self->{m_bStop}, $self->{m_nStop},
@@ -313,32 +268,38 @@ sub length
     }
 }
 
-#-----------------------------------------------------------------------------
-# Length of interval in string format
-# Input:  none
-# Output: string
-#-----------------------------------------------------------------------------
+=head2 length
+
+  Description: Returns the length of an interval in string format
+  Input:       none
+  Output:      string
+
+=cut
  
 sub lengthString
 {
-    my $self = shift;
+    my ($self) = shift;
     if ($self->{m_bEmpty}) { return ''; }
     my $delta = $self->length;
-    my ($nYears, $nMonths, $nDays, $nHours, $nMinuts, $nSeconds) = split (':', $delta);
+    my ($nYears, $nMonths, $nDays, $nHours, $nMinuts, $nSeconds) = 
+	split (':', $delta);
     $nYears =~ s/^[+|-]//;
-    return "$nYears Years $nMonths Months $nDays Days $nHours Hours $nMinuts Minuts $nSeconds Seconds";
-    return $delta;
+    return "$nYears Years $nMonths Months $nDays Days" .
+	" $nHours Hours $nMinuts Minuts $nSeconds Seconds";
 }
 
-#-----------------------------------------------------------------------------
-# Returns the interval in string format
-# Input:   none
-# Output:  string
-#-----------------------------------------------------------------------------
+=head2 get
+
+  Description: Returns the interval in string format
+  Input:       none
+  Output:      string
+
+=cut
 
 sub get
 {
-    my $self = shift;
+    my ($self) = shift;
+
     my ($szResult) = '';
     my ($sep) = defined ($,) ? $, : ','; # Which separtor
     if ($self->{m_bEmpty}) { return '<empty>'; }
@@ -356,59 +317,70 @@ sub get
     return $szResult;
 }
 
-#-----------------------------------------------------------------------------
-# Returns the start point
-# Input:   none
-# Output:  <date>
-#-----------------------------------------------------------------------------
+=head2 getStart
+
+  Description: Returns the <start value>
+  Input:       none
+  Output:      <date>
+
+=cut
 
 sub getStart
 {
-    my $self = shift;
-    return $self->{m_nStart};
+    my ($self) = shift;
+    return _to_string ($self->{m_bStart}, $self->{m_nStart});
 }
 
-#-----------------------------------------------------------------------------
-# Returns the stop point
-# Input:   none
-# Output:  <date>
-#-----------------------------------------------------------------------------
+=head2 getStop
+
+  Description: Returns the <stop value>
+  Input:       none
+  Output:      <date>
+
+=cut
 
 sub getStop
 {
-    my $self = shift;
-    return $self->{m_nStop};
+    my ($self) = shift;
+    return _to_string ($self->{m_bStop}, $self->{m_nStop});
 }
 
-#-----------------------------------------------------------------------------
-# Checks if two intervals overlap
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
+=head2 overlaps
+
+  Description: Checks if two intervals overlap
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
 
 sub overlaps
 {
-    my $self  = shift;
-    my $other = shift;
+    my ($self, $other) = @_;
+
     if ($self->{m_bEmpty} || $other->{m_bEmpty}) { return $FALSE; }
 
     if ($self->_overlaps ($other)) { return $TRUE; }
     else                           { return $FALSE; }
 }
 
-#-----------------------------------------------------------------------------
-# Return the overlap of two intervals
-# Input:  <interval>
-# Output: <interval> | empty
-#-----------------------------------------------------------------------------
+=head2 getOverlap
+
+  Description: Return the overlap of two intervals
+  Input:       <interval>
+  Output:      <interval> | undef
+
+=cut
 
 sub getOverlap
 {
-    my $self = shift;
-    my $other = shift;
+    my ($self, $other) = @_;
+
     my ($nStart, $nStop, $nLeft, $nRight);
 
-    if ($self->{m_bEmpty} || $other->{m_bEmpty}) { return _new_empty Date::Interval; }
+    if ($self->{m_bEmpty} || $other->{m_bEmpty})
+    { 
+	return _new_empty Date::Interval; 
+    }
 
     if ($self->{m_bStart} == $RELATIVE  || $self->{m_bStop} == $RELATIVE ||
 	$other->{m_bStart} == $RELATIVE || $other->{m_bStop} == $RELATIVE)
@@ -438,20 +410,43 @@ sub getOverlap
 	   $other->{m_nStart} le $self->{m_nStop})
     {
 	# Max start time
-	if ($other->{m_nStart} lt $self->{m_nStart}) { $nStart = $self->{m_nStart}; }
-	else                                         { $nStart = $other->{m_nStart}; }
+	if ($other->{m_nStart} lt $self->{m_nStart}) 
+	{ 
+	    $nStart = $self->{m_nStart}; 
+	}
+	else
+	{ 
+	    $nStart = $other->{m_nStart}; 
+	}
         # left bracket
-	if ($self->{m_nLeft} == $OPEN || $other->{m_nLeft} == $OPEN) { $nLeft = $OPEN; }
-	else                                                         { $nLeft = $CLOSED; }
-
+	if ($self->{m_nLeft} == $OPEN || $other->{m_nLeft} == $OPEN) 
+	{ 
+	    $nLeft = $OPEN; 
+	}
+	else 
+	{
+	    $nLeft = $CLOSED; 
+	}
 	
 	# Min stop time
-	if ($other->{m_nStop} lt $self->{m_nStop}) { $nStop = $other->{m_nStop}; }
-	else                                       { $nStop = $self->{m_nStop}; }
+	if ($other->{m_nStop} lt $self->{m_nStop})
+	{ 
+	    $nStop = $other->{m_nStop};
+	}
+	else
+	{ 
+	    $nStop = $self->{m_nStop}; 
+	}
 
 	# right bracket
-	if ($self->{m_nRight} == $OPEN || $other->{m_nRight} == $OPEN) { $nRight = $OPEN; }
-	else                                                           { $nRight = $CLOSED; }
+	if ($self->{m_nRight} == $OPEN || $other->{m_nRight} == $OPEN)
+	{ 
+	    $nRight = $OPEN; 
+	}
+	else
+	{ 
+	    $nRight = $CLOSED; 
+	}
 	
 	my $int = new Date::Interval ($nStart, $nStop);
 	$int->_setBrackets ($nLeft, $nRight);
@@ -464,23 +459,27 @@ sub getOverlap
     }
 }
 
-#-----------------------------------------------------------------------------
-# Examines if interval is before
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
+=head2 before
+
+  Description: Examines if interval is before
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
 
 sub before
 {
-    my $self = shift; my $other = shift;
+    my ($self, $other) = @_;
     $self->_overlaps ($other) == $BEFORE ? return $TRUE : return $FALSE;
 }
 
-#-----------------------------------------------------------------------------
-# Examines if interval meets
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
+=head2 meets
+
+  Description: Examines if intervals meets
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
 
 sub meets
 {
@@ -488,59 +487,70 @@ sub meets
     $self->_overlaps ($other) == $MEETS ? return $TRUE : return $FALSE;
 }
 
-#-----------------------------------------------------------------------------
-# Examines if intervals left overlaps
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
+=head2 leftOverlaps
+
+  Description: Examines if two intervals left overlap
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
 
 sub leftOverlaps
 {
-    my $self = shift; my $other = shift;
+    my ($self, $other) = @_;
     $self->_overlaps ($other) == $LEFT_OVERLAPS ? return $TRUE : return $FALSE;
 }
 
-#-----------------------------------------------------------------------------
-# Examines if intervals right overlaps
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
+=head2 rightOverlaps
+
+  Description: Examines if two intervals right overlap
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
 
 sub rightOverlaps
 {
-    my $self = shift; my $other = shift;
+    my ($self, $other) = @_;
     $self->_overlaps ($other) == $RIGHT_OVERLAPS ? return $TRUE : return $FALSE;
 }
 
-#-----------------------------------------------------------------------------
-# Examines if intervals during overlaps
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
+=head2 during
+
+  Description: Examines if two intervals during overlap
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
 
 sub during
 {
-    my $self = shift; my $other = shift;
+    my ($self, $other) = @_;
     $self->_overlaps ($other) == $DURING ? return $TRUE : return $FALSE;
 }
 
-#-----------------------------------------------------------------------------
-# Examines if intervals right overlaps
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
+=head2 totallyOverlaps
+
+  Description: Examines if two intervals totally overlap
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
 
 sub totallyOverlaps
 {
-    my $self = shift; my $other = shift;
-    $self->_overlaps ($other) == $TOTALLY_OVERLAPS ? return $TRUE :  return $FALSE;
+    my ($self, $other) = @_;
+    $self->_overlaps ($other) == $TOTALLY_OVERLAPS ? 
+		      return $TRUE :  return $FALSE;
 }
 
-#-----------------------------------------------------------------------------
-# Examines if intervals extends
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
+=head2 extends
+
+  Description: Examines if two intervals extends
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
 
 sub extends
 {
@@ -548,37 +558,497 @@ sub extends
     $self->_overlaps ($other) == $EXTENDS ? return $TRUE :  return $FALSE;
 }
 
-#-----------------------------------------------------------------------------
-# Examines if interval after
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
+=head2 after
+
+  Description: Examines if two intervals after
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
 
 sub after
 {
-    my $self = shift; my $other = shift;
+    my ($self, $other) = @_;
     $self->_overlaps ($other) == $EXTENDS ? return $TRUE :  return $FALSE;
 }
 
-#-----------------------------------------------------------------------------
-# Examines how intervals overlaps
-# Input:  <interval>
-# Output: <overlap type> || FALSE
-#-----------------------------------------------------------------------------
+=head2 howOverlaps
+
+  Description: Describes in text how intervals overlaps
+  Input:       <interval>
+  Output:      to screen
+
+=cut
+
+sub howOverlaps
+{
+    my ($self, $other) = @_;
+
+    my ($szOverlap) = ' does not overlap ';
+    if ($self->{m_bEmpty} || $other->{m_bEmpty}) 
+    { 
+	print $self->get,  $szOverlap, $other->get, "\n";
+    }
+    else
+    {
+	my ($bOverlaps) = $self->_overlaps($other);
+	
+	if    ($bOverlaps == $MEETS)           
+	{ 
+	    $szOverlap = ' meets '; 
+	}
+	elsif ($bOverlaps == $LEFT_OVERLAPS)
+	{ 
+	    $szOverlap = ' left overlaps '; 
+	}
+	elsif ($bOverlaps == $RIGHT_OVERLAPS)
+	{ 
+	    $szOverlap = ' right overlaps '; 
+	}
+	elsif ($bOverlaps == $TOTALLY_OVERLAPS)
+	{ 
+	    $szOverlap = ' totally overlaps '; 
+	}   
+	elsif ($bOverlaps == $DURING)
+	{ 
+	    $szOverlap = ' inclusion overlaps '; 
+	}
+	elsif ($bOverlaps == $EXTENDS)
+	{ 
+	    $szOverlap = ' extends '; 
+	}
+	else
+	{
+	    # do nothing
+	}
+	print $self->get,  $szOverlap, $other->get, "\n";
+    }
+}
+
+=head2 AllenHowOverlaps
+
+  Description: Return how intervals overlap in Allen´s terminology
+  Input:       <interval>
+  Output:      to screen
+
+=cut
+
+sub AllenHowOverlaps
+{ 
+    my ($self, $other) = @_;
+
+    my ($szOverlap) = ' does not overlap ';
+
+    # If one of the intervals are empty AllenOverlap is undefined
+    if ($self->{m_bEmpty} || $other->{m_bEmpty}) 
+    { 
+	print $self->get,  $szOverlap, $other->get, "\n";
+	return $FALSE;
+    }
+
+    # Non-empty intervals
+    my ($bOverlaps) = $self->_AllenOverlaps($other);
+
+    if    ($bOverlaps == $ALLEN_BEFORE)
+    { 
+	$szOverlap = ' before '; 
+    }
+    elsif ($bOverlaps == $ALLEN_MEETS)
+    { 
+	$szOverlap = ' meets '; 
+    }
+    elsif ($bOverlaps == $ALLEN_LEFT_OVERLAPS)
+    { 
+	$szOverlap = ' left overlaps ';
+    }
+    elsif ($bOverlaps == $ALLEN_LEFT_COVERS)
+    { 
+	$szOverlap = ' left covers '; 
+    }
+    elsif ($bOverlaps == $ALLEN_COVERS)
+    { 
+	$szOverlap = ' covers '; 
+    }
+    elsif ($bOverlaps == $ALLEN_STARTS)
+    { 
+	$szOverlap = ' starts ';
+    }
+    elsif ($bOverlaps == $ALLEN_EQUALS)
+    { 
+	$szOverlap = ' equals ';
+    }
+    elsif ($bOverlaps == $ALLEN_RIGHT_COVERS)
+    {
+	$szOverlap = ' right covers '; 
+    }
+    elsif ($bOverlaps == $ALLEN_DURING)
+    { 
+	$szOverlap = ' during ';
+    }
+    elsif ($bOverlaps == $ALLEN_FINISHES)
+    { 
+	$szOverlap = ' finishes '; 
+    }
+    elsif ($bOverlaps == $ALLEN_RIGHT_OVERLAPS)
+    { 
+	$szOverlap = ' right overlaps ';
+    }
+    elsif ($bOverlaps == $ALLEN_EXTENDS)
+    { 
+	$szOverlap = ' extends ';
+    }
+    elsif ($bOverlaps == $ALLEN_AFTER)
+    {
+	$szOverlap = ' after ';
+    }
+    print $self->get,  $szOverlap, $other->get, "\n";
+}    
+
+=head2 AllenBefore
+
+  Description: Examines if intervals Allen before
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
+
+sub AllenBefore
+{
+    my ($self, $other) = @_;
+    $self->_AllenOverlaps ($other) == $ALLEN_BEFORE ? 
+	return $TRUE : return $FALSE;
+}
+
+=head2 AllenMeets
+
+  Description: Examines if intervals Allen meets
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
+
+sub AllenMeets
+{
+    my ($self, $other) = @_;
+    $self->_AllenOverlaps ($other) == $ALLEN_MEETS ? 
+	return $TRUE : return $FALSE;
+}
+
+=head2 AllenLeftOverlaps
+
+  Description: Examines if intervals Allen left overlaps
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
+
+sub AllenLeftOverlaps
+{
+    my ($self, $other) = @_;
+    $self->_AllenOverlaps ($other) == $ALLEN_LEFT_OVERLAPS ? 
+	return $TRUE : return $FALSE;
+}
+
+=head2 AllenLeftCovers
+
+  Description: Examines if intervals Allen left covers
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
+
+sub AllenLeftCovers
+{
+    my ($self, $other) = @_;
+    $self->_AllenOverlaps ($other) == $ALLEN_LEFT_COVERS ? return $TRUE : return $FALSE;
+}
+
+=head2 AllenCovers
+
+  Description: Examines if intervals Allen covers
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
+
+sub AllenCovers
+{
+    my ($self, $other) = @_;
+    $self->_AllenOverlaps ($other) == $ALLEN_COVERS ? 
+	return $TRUE : return $FALSE;
+}
+
+=head2 AllenStarts
+
+  Description: Examines if intervals Allen starts
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
+
+sub AllenStarts
+{
+    my ($self, $other) = @_;
+    $self->_AllenOverlaps ($other) == $ALLEN_STARTS ? 
+	return $TRUE : return $FALSE;
+}
+
+=head2 AllenEquals
+
+  Description: Examines if intervals Allen equals
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
+
+sub AllenEquals
+{
+    my ($self, $other) = @_;
+    $self->_AllenOverlaps ($other) == $ALLEN_EQUALS ? 
+	return $TRUE : return $FALSE;
+}
+
+=head2 AllenRightCovers
+
+  Description: Examines if intervals Allen right covers
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
+
+sub AllenRightCovers
+{
+    my ($self, $other) = @_;
+    $self->_AllenOverlaps ($other) == $ALLEN_RIGHT_COVERS ? 
+	return $TRUE : return $FALSE;
+}
+
+=head2 AllenDuring
+
+  Description: Examines if intervals Allen during
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
+
+sub AllenDuring
+{
+    my ($self, $other) = @_;
+    $self->_AllenOverlaps ($other) == $ALLEN_DURING ? 
+	return $TRUE : return $FALSE;
+}
+
+=head2 AllenFinishes
+
+  Description: Examines if intervals Allen finishes
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
+
+sub AllenFinishes
+{
+    my ($self, $other) = @_;
+    $self->_AllenOverlaps ($other) == $ALLEN_FINISHES ? 
+	return $TRUE : return $FALSE;
+}
+
+=head2 AllenRightOverlaps
+
+  Description: Examines if intervals Allen right overlaps
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
+
+sub AllenRightOverlaps
+{
+    my ($self, $other) = @_;
+    $self->_AllenOverlaps ($other) == $ALLEN_RIGHT_OVERLAPS ? 
+	return $TRUE : return $FALSE;
+}
+
+=head2 AllenExtends
+
+  Description: Examines if intervals Allen extends
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
+
+sub AllenExtends
+{
+    my ($self, $other) = @_;
+    $self->_AllenOverlaps ($other) == $ALLEN_EXTENDS ? 
+	return $TRUE : return $FALSE;
+}
+
+=head2 AllenAfter
+
+  Description: Examines if intervals Allen after
+  Input:       <interval>
+  Output:      <boolean>
+
+=cut
+
+sub AllenAfter
+{
+    my ($self, $other) = @_;
+    $self->_AllenOverlaps ($other) == $ALLEN_AFTER ? 
+	return $TRUE : return $FALSE;
+}
+
+#-------------------------------------------------------------------------------
+# Private Methods
+#-------------------------------------------------------------------------------
+
+=head1 Private Methods
+
+=head2 _initialize
+
+  Description: Initization of new instances
+  Input:       <start value> <stop value> [<interval type>]
+  Output:      none
+
+=cut
+
+sub _initialize
+{
+    my ($self, $szStart, $szStop, $nType) = @_;
+
+    $self->{m_bEmpty} = $FALSE;
+
+    # Parse the interval end points
+    ($self->{m_nStart},	$self->{m_bStart}) = _getEndPoint($szStart);
+    if (!defined ($self->{m_nStart})) 
+    { 
+	print STDERR "Problems using $szStart as start value\n"; 
+	$self->{m_bEmpty} = $TRUE;
+    }
+
+    ($self->{m_nStop},	$self->{m_bStop}) = _getEndPoint($szStop);
+    if (!defined ($self->{m_nStop})) 
+    { 
+	print STDERR "Problems using $szStop as stop value\n"; 
+	$self->{m_bEmpty} = $TRUE;
+    }
+
+    # Check the end point values
+    my $start = _to_date ($FALSE, $self->{m_bStart}, $self->{m_nStart});
+    my $stop  = _to_date ($TRUE,  $self->{m_bStop}, 
+			  $self->{m_nStop}, $self->{m_bStart}, $start);
+
+    if ($self->{m_bStop} == $ABSOLUTE && $start gt $stop)
+    {
+	die "Start date larger than stop date\n";
+    }
+    
+    # Use the default <interval type>?
+    if (!defined($nType)) { $nType = $DefaultType; }
+    if (!$self->_setIntervalType ($nType)) 
+    {
+	print STDERR "Problems setting the <interval type> $nType\n";
+    }
+}
+
+=head2 _new_empty
+
+  Description: Initization of new empty instance
+  Input:       none
+  Output:      empty <interval>
+
+=cut
+
+sub _new_empty
+{
+    my ($proto) = shift;
+
+    my ($class) = ref ($proto) || $proto;
+    my ($self)  = {};
+    bless ($self, $class);
+
+    $self->{m_bEmpty} = $TRUE;
+    return $self;
+}
+
+=head2 _setIntervalType
+
+  Description: Sets the <interval type>
+  Input:       <interval type>
+  Output:      <boolean>
+
+=cut
+
+sub _setIntervalType
+{
+    my ($self, $nType) = @_;
+    
+    if ($nType == $CLOSED_INT) 
+    {
+	$self->{m_nLeft}  = $CLOSED;
+	$self->{m_nRight} = $CLOSED; 
+    }
+    elsif ($nType == $RIGHT_OPEN_INT) 
+    {
+	$self->{m_nLeft}  = $CLOSED;
+	$self->{m_nRight} = $OPEN; 
+    }
+    elsif ($nType == $LEFT_OPEN_INT) 
+    {
+	$self->{m_nLeft}  = $OPEN;
+	$self->{m_nRight} = $CLOSED; 
+    }
+    elsif ($nType == $OPEN_INT) 
+    {
+	$self->{m_nLeft}  = $OPEN;
+	$self->{m_nRight} = $OPEN; 
+    }
+    else
+    {
+	return $FALSE;
+    }
+    return $TRUE;
+}
+
+=head2 _setBrackets
+
+  Description: Sets the interval brackets
+  Input:       <interval end> <interval end>
+  Output:      <boolean>
+
+=cut
+
+sub _setBrackets
+{
+    my ($self, $nLeft, $nRight) = @_;
+    $self->{m_nLeft}  = $nLeft;
+    $self->{m_nRight} = $nRight;
+    return $TRUE;
+}
+
+=head2 _overlaps
+
+  Description: Examines how intervals overlaps
+  Input:       <interval>
+  Output:      <overlap type> || FALSE
+
+=cut
 
 sub _overlaps
 {
-    my $self = shift;
-    my $other = shift;
+    my ($self, $other) = @_;
+
     my ($bHowOverlaps, $bLeft);
     $bHowOverlaps = $bLeft = $FALSE;
 
     if ($self->{m_bEmpty} || $other->{m_bEmpty}) { return $FALSE; }
 
     my $start1 = _to_date ($FALSE, $self->{m_bStart}, $self->{m_nStart});
-    my $stop1  = _to_date ($TRUE,  $self->{m_bStop}, $self->{m_nStop}, $self->{m_bStart}, $start1);
+    my $stop1  = _to_date ($TRUE,  $self->{m_bStop}, 
+			   $self->{m_nStop}, $self->{m_bStart}, $start1);
     my $start2 = _to_date ($TRUE,  $other->{m_bStart}, $other->{m_nStart});
-    my $stop2  = _to_date ($TRUE,  $other->{m_bStop}, $other->{m_nStop}, $other->{m_bStart}, $start2);
+    my $stop2  = _to_date ($TRUE,  $other->{m_bStop}, 
+			   $other->{m_nStop}, $other->{m_bStart}, $start2);
     
     # Meets
     if ($stop1 eq $start2 &&
@@ -612,55 +1082,31 @@ sub _overlaps
     return $bHowOverlaps;
 }
 
-#-----------------------------------------------------------------------------
-# Describes in text how intervals overlaps
-# Input:  <interval>
-# Output: to screen
-#-----------------------------------------------------------------------------
+=head2 _AllenOverlaps
 
-sub howOverlaps
-{
-    my $self  = shift;
-    my $other = shift;
-    my ($szOverlap) = ' does not overlap ';
-    if ($self->{m_bEmpty} || $other->{m_bEmpty}) 
-    { 
-	print $self->get,  $szOverlap, $other->get, "\n";
-    }
-    else
-    {
-	my ($bOverlaps) = $self->_overlaps($other);
-	
-	if    ($bOverlaps == $MEETS)           { $szOverlap = ' meets '; }
-	elsif ($bOverlaps == $LEFT_OVERLAPS)   { $szOverlap = ' left overlaps '; }
-	elsif ($bOverlaps == $RIGHT_OVERLAPS)  { $szOverlap = ' right overlaps '; }
-	elsif ($bOverlaps == $TOTALLY_OVERLAPS){ $szOverlap = ' totally overlaps '; }   
-	elsif ($bOverlaps == $DURING)          { $szOverlap = ' inclusion overlaps '; }
-	elsif ($bOverlaps == $EXTENDS)         { $szOverlap = ' extends '; }
-	print $self->get,  $szOverlap, $other->get, "\n";
-    }
-}
+  Description: Finds how intervals overlap in Allen terminology
+  Input:       <interval>
+  Output:      <Allen overlap type>
 
-#-----------------------------------------------------------------------------
-# Finds how intervals overlap in Allen terminology
-# Input:  none
-# Output: <Allen overlap type> string
-#-----------------------------------------------------------------------------
+=cut
 
 sub _AllenOverlaps
 {
-    my $self = shift;
-    my $other = shift;
+    my ($self, $other) = @_;
+
     my ($bHowOverlaps) = $FALSE;
 
     if ($self->{m_bEmpty} || $other->{m_bEmpty}) { return $FALSE; }
 
     my $start1 = _to_date ($FALSE, $self->{m_bStart}, $self->{m_nStart});
-    my $stop1  = _to_date ($TRUE, $self->{m_bStop}, $self->{m_nStop}, $self->{m_bStart}, $start1);
+    my $stop1  = _to_date ($TRUE, $self->{m_bStop}, $self->{m_nStop}, 
+			   $self->{m_bStart}, $start1);
     my $start2 = _to_date ($TRUE, $other->{m_bStart}, $other->{m_nStart});
-    my $stop2  = _to_date ($TRUE, $other->{m_bStop}, $other->{m_nStop}, $other->{m_bStart}, $start2);
+    my $stop2  = _to_date ($TRUE, $other->{m_bStop}, $other->{m_nStop}, 
+			   $other->{m_bStart}, $start2);
 
-    # before/meets/left overlaps/left covers/covers (note the order is important)
+    # before/meets/left overlaps/left covers/covers 
+    # (note the order is important)
     if ($start1 lt $start2)
     {
 	if    ($stop1 lt $start2) { $bHowOverlaps = $ALLEN_BEFORE; }
@@ -691,217 +1137,33 @@ sub _AllenOverlaps
     return $bHowOverlaps;
 }
 
-#-----------------------------------------------------------------------------
-# Get how intervals overlap in Allen terminology
-# Input:  <interval>
-# Output: <Allen overlap type> string || FALSE
-#-----------------------------------------------------------------------------
+################################################################################
+# Overloaded Operators
+################################################################################
 
-sub AllenHowOverlaps
-{ 
-    my $self  = shift;
-    my $other = shift;
-    my ($szOverlap) = ' does not overlap ';
+=head1 Overloaded Operators
 
-    # If one of the intervals are empty AllenOverlap is undefined
-    if ($self->{m_bEmpty} || $other->{m_bEmpty}) 
-    { 
-	print $self->get,  $szOverlap, $other->get, "\n";
-	return $FALSE;
-    }
+=head2 _plus 
 
-    # Non-empty intervals
-    my ($bOverlaps) = $self->_AllenOverlaps($other);
+  Description: + operator. If two intervals overlaps the union is returned
+  Input:       <interval> <interval>
+  Output:      <interval> || undefined
 
-    if    ($bOverlaps == $ALLEN_BEFORE)         { $szOverlap = ' before '; }
-    elsif ($bOverlaps == $ALLEN_MEETS)          { $szOverlap = ' meets '; }
-    elsif ($bOverlaps == $ALLEN_LEFT_OVERLAPS)  { $szOverlap = ' left overlaps '; }
-    elsif ($bOverlaps == $ALLEN_LEFT_COVERS)    { $szOverlap = ' left covers '; }
-    elsif ($bOverlaps == $ALLEN_COVERS)         { $szOverlap = ' covers '; }
-    elsif ($bOverlaps == $ALLEN_STARTS)         { $szOverlap = ' starts '; }
-    elsif ($bOverlaps == $ALLEN_EQUALS)         { $szOverlap = ' equals '; }
-    elsif ($bOverlaps == $ALLEN_RIGHT_COVERS)   { $szOverlap = ' right covers '; }
-    elsif ($bOverlaps == $ALLEN_DURING)         { $szOverlap = ' during '; }
-    elsif ($bOverlaps == $ALLEN_FINISHES)       { $szOverlap = ' finishes '; }
-    elsif ($bOverlaps == $ALLEN_RIGHT_OVERLAPS) { $szOverlap = ' right overlaps '; }
-    elsif ($bOverlaps == $ALLEN_EXTENDS)        { $szOverlap = ' extends '; }
-    elsif ($bOverlaps == $ALLEN_AFTER)          { $szOverlap = ' after '; }
-    print $self->get,  $szOverlap, $other->get, "\n";
-}    
-
-#-----------------------------------------------------------------------------
-# Examines if intervals Allen before
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
-
-sub AllenBefore
-{
-    my $self = shift; my $other = shift;
-    $self->_AllenOverlaps ($other) == $ALLEN_BEFORE ? return $TRUE : return $FALSE;
-}
-
-#-----------------------------------------------------------------------------
-# Examines if intervals Allen before
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
-
-sub AllenMeets
-{
-    my $self = shift; my $other = shift;
-    $self->_AllenOverlaps ($other) == $ALLEN_MEETS ? return $TRUE : return $FALSE;
-}
-
-#-----------------------------------------------------------------------------
-# Examines if intervals Allen before
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
-
-sub AllenLeftOverlaps
-{
-    my $self = shift; my $other = shift;
-    $self->_AllenOverlaps ($other) == $ALLEN_LEFT_OVERLAPS ? return $TRUE : return $FALSE;
-}
-
-#-----------------------------------------------------------------------------
-# Examines if intervals Allen left covers
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
-
-sub AllenLeftCovers
-{
-    my $self = shift; my $other = shift;
-    $self->_AllenOverlaps ($other) == $ALLEN_LEFT_COVERS ? return $TRUE : return $FALSE;
-}
-
-#-----------------------------------------------------------------------------
-# Examines if intervals Allen covers
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
-
-sub AllenCovers
-{
-    my $self = shift; my $other = shift;
-    $self->_AllenOverlaps ($other) == $ALLEN_COVERS ? return $TRUE : return $FALSE;
-}
-
-#-----------------------------------------------------------------------------
-# Examines if intervals Allen starts
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
-
-sub AllenStarts
-{
-    my $self = shift; my $other = shift;
-    $self->_AllenOverlaps ($other) == $ALLEN_STARTS ? return $TRUE : return $FALSE;
-}
-
-#-----------------------------------------------------------------------------
-# Examines if intervals Allen equals
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
-
-sub AllenEquals
-{
-    my $self = shift; my $other = shift;
-    $self->_AllenOverlaps ($other) == $ALLEN_EQUALS ? return $TRUE : return $FALSE;
-}
-
-#-----------------------------------------------------------------------------
-# Examines if intervals Allen right covers
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
-
-sub AllenRightCovers
-{
-    my $self = shift; my $other = shift;
-    $self->_AllenOverlaps ($other) == $ALLEN_RIGHT_COVERS ? return $TRUE : return $FALSE;
-}
-
-#-----------------------------------------------------------------------------
-# Examines if intervals Allen during
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
-
-sub AllenDuring
-{
-    my $self = shift; my $other = shift;
-    $self->_AllenOverlaps ($other) == $ALLEN_DURING ? return $TRUE : return $FALSE;
-}
-
-#-----------------------------------------------------------------------------
-# Examines if intervals Allen finishes
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
-
-sub AllenFinishes
-{
-    my $self = shift; my $other = shift;
-    $self->_AllenOverlaps ($other) == $ALLEN_FINISHES ? return $TRUE : return $FALSE;
-}
-
-#-----------------------------------------------------------------------------
-# Examines if intervals Allen right overlaps
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
-
-sub AllenRightOverlaps
-{
-    my $self = shift; my $other = shift;
-    $self->_AllenOverlaps ($other) == $ALLEN_RIGHT_OVERLAPS ? return $TRUE : return $FALSE;
-}
-
-#-----------------------------------------------------------------------------
-# Examines if intervals Allen extends
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
-
-sub AllenExtends
-{
-    my $self = shift; my $other = shift;
-    $self->_AllenOverlaps ($other) == $ALLEN_EXTENDS ? return $TRUE : return $FALSE;
-}
-
-#-----------------------------------------------------------------------------
-# Examines if intervals Allen right overlaps
-# Input:  <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
-
-sub AllenAfter
-{
-    my $self = shift; my $other = shift;
-    $self->_AllenOverlaps ($other) == $ALLEN_AFTER ? return $TRUE : return $FALSE;
-}
-
-##############################################################################
-# Overloaded operators
-##############################################################################
-
-#-----------------------------------------------------------------------------
-# If two intervals overlaps the union is returned
-# Input:  <interval> <interval>
-# Output: <interval> || undefined
-#-----------------------------------------------------------------------------
+=cut
 
 sub _plus 
 {
     my ($i1, $i2, $regular) = @_;
     my ($nMin, $nMax);
     $nMin = $nMax = 0;
-    if ($i2->{m_bEmpty}) { return (ref $i1)->new ($i1->{m_nStart}, $i1->{m_nStop}) } 
-    if ($i1->{m_bEmpty}) { return (ref $i2)->new ($i2->{m_nStart}, $i2->{m_nStop}) } 
+    if ($i2->{m_bEmpty}) 
+    { 
+	return (ref $i1)->new ($i1->{m_nStart}, $i1->{m_nStop}); 
+    } 
+    if ($i1->{m_bEmpty}) 
+    { 
+	return (ref $i2)->new ($i2->{m_nStart}, $i2->{m_nStop}); 
+    } 
 
     if ($i1->{m_bStart} == $RELATIVE || $i1->{m_bStop} == $RELATIVE ||
 	$i2->{m_bStart} == $RELATIVE || $i2->{m_bStop} == $RELATIVE)
@@ -909,29 +1171,40 @@ sub _plus
 	print STDERR "Sorry, + of relative intervals not implemented yet\n";
 	return _new_empty Date::Interval;
     }
-
+    
     if ($i1->overlaps ($i2))
     {
-	$nMin = $i1->{m_nStart} lt $i2->{m_nStart} ? $i1->{m_nStart} : $i2->{m_nStart};
-	$nMax = $i1->{m_nStop} gt $i2->{m_nStop}   ? $i1->{m_nStop}  : $i2->{m_nStop};
+	$nMin = $i1->{m_nStart} lt $i2->{m_nStart} ? 
+	    $i1->{m_nStart} : $i2->{m_nStart};
+	$nMax = $i1->{m_nStop} gt $i2->{m_nStop} ? 
+	    $i1->{m_nStop}  : $i2->{m_nStop};
     }
     return (ref $i1)->new ($nMin, $nMax);
 }
 
-#-----------------------------------------------------------------------------
-# If two intervals overlaps the union is returned
-# Input:  <interval> <interval>
-# Output: <interval> || undefined
-#-----------------------------------------------------------------------------
+=head2 _minus
+
+  Description: - operator. 
+               If two intervals overlaps the intersection is returned
+  Input:       <interval> <interval>
+  Output:      <interval> [ <interval> ] || undefined
+
+=cut
 
 sub _minus 
 {
     my ($i1, $i2, $regular) = @_;
-    my ($nStart, $nStop, $nLeft, $nRight);
+    my ($nStart1, $nStop1, $nLeft1, $nRight1);
+    my ($nStart2, $nStop2, $nLeft2, $nRight2);
 
-    if ($i2->{m_bEmpty}) { return (ref $i1)->new ($i1->{m_nStart}, $i1->{m_nStop}); } 
+    #
+    if ($i2->{m_bEmpty}) 
+    { 
+	return (ref $i1)->new ($i1->{m_nStart}, $i1->{m_nStop}); 
+    } 
     if ($i1->{m_bEmpty}) { return _new_empty Date::Interval; } 
 
+    # Handle relative intervals
     if ($i1->{m_bStart} == $RELATIVE || $i1->{m_bStop} == $RELATIVE ||
 	$i2->{m_bStart} == $RELATIVE || $i2->{m_bStop} == $RELATIVE)
     {
@@ -940,37 +1213,48 @@ sub _minus
     }
 
     my ($nOverlap) = $i1->_overlaps ($i2);
-    $nStart = $nStop = 0;
+    $nStart1 = $nStop1 = 0;
     my ($bDefined) = $TRUE; # Used if temporal element should be returned
+
 
     if ($nOverlap == $MEETS)
     {
-	$nStart = $i1->{m_nStart};
-	$nStop  = $i1->{m_nStop};
-	$nLeft = $i1->{m_nLeft};
-	if ($i2->{m_nLeft} == $CLOSED) { $nRight = $OPEN; }
-	else                           { $nRight = $i1->{m_nRight}; }
+	$nStart1 = $i1->{m_nStart};
+	$nStop1  = $i1->{m_nStop};
+	$nLeft1 = $i1->{m_nLeft};
+	if ($i2->{m_nLeft} == $CLOSED) { $nRight1 = $OPEN; }
+	else                           { $nRight1 = $i1->{m_nRight}; }
     }
     elsif ($nOverlap == $LEFT_OVERLAPS)
     {
-	$nStart = $i1->{m_nStart};
-	$nStop  = $i2->{m_nStart};
-	$nLeft  = $i1->{m_nLeft};
-	if ($i2->{m_nLeft} == $CLOSED) { $nRight = $OPEN; }
-	else                           { $nRight = $CLOSED; }
+	$nStart1 = $i1->{m_nStart};
+	$nStop1  = $i2->{m_nStart};
+	$nLeft1  = $i1->{m_nLeft};
+	if ($i2->{m_nLeft} == $CLOSED) { $nRight1 = $OPEN; }
+	else                           { $nRight1 = $CLOSED; }
     }
     elsif ($nOverlap == $RIGHT_OVERLAPS)
     {
-	$nStart = $i2->{m_nStop};
-	$nStop  = $i1->{m_nStop};
-	if ($i2->{m_nRight} == $CLOSED) { $nLeft = $OPEN; }
-	else                            { $nLeft = $CLOSED; }
-	$nRight = $i1->{m_nRight};
+	$nStart1 = $i2->{m_nStop};
+	$nStop1  = $i1->{m_nStop};
+	if ($i2->{m_nRight} == $CLOSED) { $nLeft1 = $OPEN; }
+	else                            { $nLeft1 = $CLOSED; }
+	$nRight1 = $i1->{m_nRight};
     }
     elsif ($nOverlap == $TOTALLY_OVERLAPS)
     {
-	print STDERR "Sorry minus and during overlap not implemented yet\n";
-	$bDefined = $FALSE;
+	# First <interval>
+	$nStart1 = $i1->{m_nStart};
+	$nStop1  = $i2->{m_nStart};
+	$nLeft1  = $i1->{m_nLeft};
+	if ($i2->{m_nLeft} == $CLOSED) { $nRight1 = $OPEN; }
+	else                           { $nRight1 = $CLOSED; }
+	# Second <interval>
+	$nStart2 = $i2->{m_nStop};
+	$nStop2  = $i1->{m_nStop};
+	if ($i2->{m_nRight} == $CLOSED) { $nLeft2 = $OPEN; }
+	else                            { $nLeft2 = $CLOSED; }
+	$nRight2 = $i1->{m_nRight};
     }
     elsif ($nOverlap == $DURING)
     {
@@ -978,23 +1262,33 @@ sub _minus
     }
     elsif ($nOverlap == $EXTENDS)
     {
-	$nStart = $i1->{m_nStart};
-	$nStop  = $i1->{m_nStop};
-	if ($i2->{m_nRight} == $CLOSED) { $nLeft = $OPEN; }
-	else                            { $nLeft = $i1->{m_nLeft}; }
-	$nRight = $i1->{m_nRight};
+	$nStart1 = $i1->{m_nStart};
+	$nStop1  = $i1->{m_nStop};
+	if ($i2->{m_nRight} == $CLOSED) { $nLeft1 = $OPEN; }
+	else                            { $nLeft1 = $i1->{m_nLeft}; }
+	$nRight1 = $i1->{m_nRight};
     }
 
     else
     {
-	# does not overlap
+	# The intervals do not overlap
     }
 
+    # Build the returned intervals
     if ($bDefined)
     {
-	my $int = new Date::Interval ($nStart, $nStop);
-	$int->_setBrackets ($nLeft, $nRight);
-	return $int;
+	my $int1 = new Date::Interval ($nStart1, $nStop1);
+	$int1->_setBrackets ($nLeft1, $nRight1);
+	if ($nOverlap == $TOTALLY_OVERLAPS)
+	{
+	    my $int2 = new Date::Interval ($nStart2, $nStop2);
+	    $int2->_setBrackets ($nLeft2, $nRight2);
+	    return wantarray ? ($int1, $int2) : $int1;
+	}
+	else 
+	{
+	    return $int1;
+	}
     }
     else 
     {
@@ -1002,11 +1296,13 @@ sub _minus
     }
 }
 
-#-----------------------------------------------------------------------------
-# Operator <
-# Input:  <interval> <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
+=head2 _smaller_than
+
+  Description: < operator. 
+  Input:       <interval> <interval>
+  Output:      <boolean>
+
+=cut
 
 sub _smaller_than
 {
@@ -1014,19 +1310,23 @@ sub _smaller_than
     if ($i1->{m_bEmpty} || $i2->{m_bEmpty}) { return $FALSE; }
 
     my $start1 = _to_date ($FALSE, $i1->{m_bStart}, $i1->{m_nStart});
-    my $stop1  = _to_date ($TRUE, $i1->{m_bStop},  $i1->{m_nStop}, $i1->{m_bStart}, $start1);
+    my $stop1  = _to_date ($TRUE, $i1->{m_bStop},  $i1->{m_nStop}, 
+			   $i1->{m_bStart}, $start1);
     my $start2 = _to_date ($TRUE, $i2->{m_bStart}, $i2->{m_nStart});
-    my $stop2  = _to_date ($TRUE, $i2->{m_bStop},  $i2->{m_nStop}, $i2->{m_bStart}, $start2);
+    my $stop2  = _to_date ($TRUE, $i2->{m_bStop},  $i2->{m_nStop}, 
+			   $i2->{m_bStart}, $start2);
 
     if ($stop1 lt $start2) { return $TRUE; }
     else                   { return $FALSE; }
 }
 
-#-----------------------------------------------------------------------------
-# Operator >
-# Input:  <interval> <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
+=head2 _greater_than
+
+  Description: > operator. 
+  Input:       <interval> <interval>
+  Output:      <boolean>
+
+=cut
 
 sub _greater_than
 {
@@ -1034,19 +1334,23 @@ sub _greater_than
     if ($i1->{m_bEmpty} || $i2->{m_bEmpty}) { return $FALSE; }
 
     my $start1 = _to_date ($FALSE, $i1->{m_bStart}, $i1->{m_nStart});
-    my $stop1  = _to_date ($TRUE, $i1->{m_bStop},  $i1->{m_nStop}, $i1->{m_bStart}, $start1);
+    my $stop1  = _to_date ($TRUE, $i1->{m_bStop},  $i1->{m_nStop}, 
+			   $i1->{m_bStart}, $start1);
     my $start2 = _to_date ($TRUE, $i2->{m_bStart}, $i2->{m_nStart});
-    my $stop2  = _to_date ($TRUE, $i2->{m_bStop},  $i2->{m_nStop}, $i2->{m_bStart}, $start2);
+    my $stop2  = _to_date ($TRUE, $i2->{m_bStop},  $i2->{m_nStop},
+			   $i2->{m_bStart}, $start2);
 
     if ($start1 gt $stop2) { return $TRUE; }
     else                   { return $FALSE; }
 }
 
-#-----------------------------------------------------------------------------
-# Operator ==
-# Input:  <interval> <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
+=head2 _equal
+
+  Description: == operator. 
+  Input:       <interval> <interval>
+  Output:      <boolean>
+
+=cut
 
 sub _equal
 {
@@ -1054,19 +1358,23 @@ sub _equal
     if ($i1->{m_bEmpty} || $i2->{m_bEmpty}) { return $FALSE; }
 
     my $start1 = _to_date ($FALSE, $i1->{m_bStart}, $i1->{m_nStart});
-    my $stop1  = _to_date ($TRUE, $i1->{m_bStop},  $i1->{m_nStop}, $i1->{m_bStart}, $start1);
+    my $stop1  = _to_date ($TRUE, $i1->{m_bStop},  $i1->{m_nStop}, 
+			   $i1->{m_bStart}, $start1);
     my $start2 = _to_date ($TRUE, $i2->{m_bStart}, $i2->{m_nStart});
-    my $stop2  = _to_date ($TRUE, $i2->{m_bStop},  $i2->{m_nStop}, $i2->{m_bStart}, $start2);
+    my $stop2  = _to_date ($TRUE, $i2->{m_bStop},  $i2->{m_nStop}, 
+			   $i2->{m_bStart}, $start2);
 
     if ($start1 eq $start2 && $stop1 eq $stop2) { return $TRUE;  }
     else                                        { return $FALSE; }
 }
 
-#-----------------------------------------------------------------------------
-# Operator !=
-# Input:  <interval> <interval>
-# Output: boolean
-#-----------------------------------------------------------------------------
+=head2 _equal
+
+  Description: != operator. 
+  Input:       <interval> <interval>
+  Output:      <boolean>
+
+=cut
 
 sub _not_equal
 {
@@ -1074,28 +1382,35 @@ sub _not_equal
     if ($i1->{m_bEmpty} || $i2->{m_bEmpty}) { return $FALSE; }
 
     my $start1 = _to_date ($FALSE, $i1->{m_bStart}, $i1->{m_nStart});
-    my $stop1  = _to_date ($TRUE, $i1->{m_bStop},  $i1->{m_nStop}, $i1->{m_bStart}, $start1);
+    my $stop1  = _to_date ($TRUE, $i1->{m_bStop},  $i1->{m_nStop}, 
+			   $i1->{m_bStart}, $start1);
     my $start2 = _to_date ($TRUE, $i2->{m_bStart}, $i2->{m_nStart});
-    my $stop2  = _to_date ($TRUE, $i2->{m_bStop},  $i2->{m_nStop}, $i2->{m_bStart}, $start2);
+    my $stop2  = _to_date ($TRUE, $i2->{m_bStop},  $i2->{m_nStop},
+			   $i2->{m_bStart}, $start2);
 
     if ($i1 == $i2) { return $FALSE; }
     else            { return $TRUE;  }
 }
 
-#-----------------------------------------------------------------------------
-# Spaceship operator, used ONLY for sorting because based on the start value
-# Input:  <interval> <interval>
-# Output: -1 || 0 || 1
-#-----------------------------------------------------------------------------
+=head2 _spaceship
+
+  Description: <=> operator. 
+               Use ONLY for sorting because based on the start value
+  Input:       <interval> <interval>
+  Output:      -1 || 0 || 1    
+
+=cut
 
 sub _spaceship 
 {
     my ($i1, $i2) = @_;
 
     my $start1 = _to_date ($FALSE, $i1->{m_bStart}, $i1->{m_nStart});
-    my $stop1  = _to_date ($TRUE, $i1->{m_bStop},  $i1->{m_nStop}, $i1->{m_bStart}, $start1);
+    my $stop1  = _to_date ($TRUE, $i1->{m_bStop},  $i1->{m_nStop}, 
+			   $i1->{m_bStart}, $start1);
     my $start2 = _to_date ($TRUE, $i2->{m_bStart}, $i2->{m_nStart});
-    my $stop2  = _to_date ($TRUE, $i2->{m_bStop},  $i2->{m_nStop}, $i2->{m_bStart}, $start2);
+    my $stop2  = _to_date ($TRUE, $i2->{m_bStop},  $i2->{m_nStop}, 
+			   $i2->{m_bStart}, $start2);
 
     if    ($i1->{m_bEmpty})    { return -1; } # per definition :-)
     elsif ($i2->{m_bEmpty})    { return 1; }  # ditto
@@ -1105,11 +1420,13 @@ sub _spaceship
     else                       { print STDERR "Error in spaceship\n"; }
 }
 
-#------------------------------------------------------------------------------
-# For strinifying an interval
-# Input:  <interval>
-# Output: string
-#------------------------------------------------------------------------------
+=head2 _stringify
+
+  Description: For strinifying an interval
+  Input:       <interval>
+  Output:      string
+
+=cut
 
 sub _stringify
 {
@@ -1121,11 +1438,13 @@ sub _stringify
 # Various help functions
 ##############################################################################
 
-#-----------------------------------------------------------------------------
-# Converts a string to an <end point>
-# Input:  string
-# Output: <end point> <value type>
-#-----------------------------------------------------------------------------
+=head2 _getEndPoint
+
+  Description: Converts a string to an <end point>
+  Input:       string
+  Output:      <end point> <value type>
+
+=cut
 
 sub _getEndPoint
 {
@@ -1166,11 +1485,14 @@ sub _getEndPoint
     return ('', ''); # An error
 }
 
-#-----------------------------------------------------------------------------
-# Convert <end point> to a date
-# Input:  <fix clock> <value type> <end point> [<start date value type> <start date>]
-# Output: <date>
-#-----------------------------------------------------------------------------
+=head2 _to_date
+
+  Description: Converts <end point> to a date
+  Input:       <fix clock> <value type> <end point> [<start date value type> 
+						     <start date>]
+  Output:      <date>
+
+=cut
 
 sub _to_date
 {
@@ -1207,11 +1529,13 @@ sub _to_date
     return $dDate;
 }
 
-#-----------------------------------------------------------------------------
-# Converst and <end point> to a string
-# Input:   boolean
-# Output:  string
-#-----------------------------------------------------------------------------
+=head2 _getCurrentTime
+
+  Description: Converts an <end point> to a string
+  Input:       <boolean>
+  Output:      string
+
+=cut
 
 sub _getCurrentTime
 {
@@ -1220,11 +1544,13 @@ sub _getCurrentTime
     return $Now;
 }
 
-#-----------------------------------------------------------------------------
-# Converts and <end point> to a string
-# Input:   <value type> <end point>
-# Output:  string
-#-----------------------------------------------------------------------------
+=head2 _to_string
+
+  Description: Converts an <end point> to a string
+  Input:       <value type> <end point>
+  Output:      string
+
+=cut
 
 sub _to_string
 {
@@ -1237,7 +1563,7 @@ sub _to_string
     }
     elsif ($nValueType == $RELATIVE)
     {
-	if ($szEndPoint eq 'NOBIND NOW') { $szResult = 'now'; }
+	if ($szEndPoint eq 'NOBIND NOW') { $szResult = 'NOBIND NOW'; }
 	else                             { $szResult = $szEndPoint; }
     }
     else
@@ -1257,9 +1583,6 @@ __END__
 ##############################################################################
 ##############################################################################
 
-=head1 NAME
-
-Date::Interval - handling of temporal intervals based on Date::Manip
 
 =head1 SYNOPSIS
 
@@ -1525,6 +1848,11 @@ Date::Interval - handling of temporal intervals based on Date::Manip
     - Implement getOverlap and overloaded operators for relative intervals
 
 =head1 Change History
+    ### Changes version 0.02 => 0.03 ###
+    - TODO: during overlap
+
+    - Made code to fit onto 80 columns
+    - Added POD for each method/function
 
     ### Changes version 0.01 => 0.02 ###
     - Add overload  <, >, ==, !=, <=>. 
@@ -1549,10 +1877,9 @@ Date::Interval - handling of temporal intervals based on Date::Manip
     Allen, J. F., "An Interval-Based Representation of Temporal Knowledge",
     Communication of the ACM, 26(11) pp. 832-843, November 1983.
 
-=head1 AUTHOR
+=head1 AUTHORS
 
 Kristian Torp <F<torp@cs.auc.dk>>
 
 =cut
 
-#eof

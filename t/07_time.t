@@ -18,19 +18,23 @@ $int3 = new Date::Interval ("10:03:03", "11:30:30");
 if($int1->get eq '[10:03:03, 11:30:30)')
 {print "ok $n\n";} else {print "not ok $n\n";}
 $n++;
-if($int1->length eq '+0:0:0:1:27:27')
+
+if($int1->length eq '+0:0:0:0:1:27:27')
 {print "ok $n\n";} else {print "not ok $n\n";}
 $n++;
 
 if ($int1<$int2)
 {print "ok $n\n";} else {print "not ok $n\n";}
 $n++;
+
 if (!($int1>$int2))
 {print "ok $n\n";} else {print "not ok $n\n";}
 $n++;
+
 if (!($int1==$int2))
 {print "ok $n\n";} else {print "not ok $n\n";}
 $n++;
+
 if ($int1!=$int2)
 {print "ok $n\n";} else {print "not ok $n\n";}
 $n++;
@@ -38,12 +42,15 @@ $n++;
 if (!($int1<$int3))
 {print "ok $n\n";} else {print "not ok $n\n";}
 $n++;
+
 if (!($int1>$int3))
 {print "ok $n\n";} else {print "not ok $n\n";}
 $n++;
+
 if ($int1==$int3)
 {print "ok $n\n";} else {print "not ok $n\n";}
 $n++;
+
 if (!($int1!=$int3))
 {print "ok $n\n";} else {print "not ok $n\n";}
 $n++;

@@ -11,7 +11,7 @@ Date::Interval->setDisplayFormat("%Y-%m-%d"); # To make it more readable to my s
 &Date_Init("DateFormat=non-US");
 $, = ',';
 
-print "1..23\n";
+print "1..24\n";
 $n = 1;
 
 $int601 = new Date::Interval ("10/10/97", "15/10/97"); 
@@ -35,7 +35,7 @@ if($int606->get eq '[1997-10-10, 1997-10-22)')
 $n++;
 
 ### - ###
-$int611 = new Date::Interval ("10/10/97","15/10/97");
+$int611 = new Date::Interval ("10/10/97", "15/10/97");
 $int612 = new Date::Interval ("02/10/97", "12/10/97");
 $int613 = $int611 - $int612;
 if($int613->get eq '[1997-10-12, 1997-10-15)')
@@ -66,7 +66,14 @@ $n++;
 $int651 = new Date::Interval ("10/10/97", "15/10/97");
 $int652 = new Date::Interval ("12/10/97", "14/10/97");
 $int653 = $int651 - $int652;
-if($int653->get eq '<empty>')
+if($int653->get eq '[1997-10-10, 1997-10-12)')
+{print "ok $n\n";} else {print "not ok $n\n";}
+$n++;
+
+# TODO Make to use overloaded operator
+my ($int_1, $int_2) = $int651->_minus($int652);
+if ($int_1->get eq '[1997-10-10, 1997-10-12)' &&
+    $int_2->get eq '[1997-10-14, 1997-10-15)')
 {print "ok $n\n";} else {print "not ok $n\n";}
 $n++;
 

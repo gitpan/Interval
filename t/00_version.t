@@ -11,7 +11,7 @@ Date::Interval->setDisplayFormat("%Y-%m-%d");
 
 print "1..3\n";
 $n = 1;
-if ($Date::Interval::VERSION eq "0.02")
+if ($Date::Interval::VERSION eq "0.03")
 {print "ok $n\n";} else {print "not ok $n\n";}
 $n++;
 
