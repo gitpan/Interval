@@ -3,7 +3,7 @@ require 5.004;
 $Verbose = 1;
 
 WriteMakefile(
-              'NAME'            => 'Interval',
+              'NAME'            => 'Date::Interval',
               'VERSION_FROM'    => 'Interval.pm',
               'clean'           => {'FILES' => 'err'},
               'dist'            => { COMPRESS => 'gzip', SUFFIX => 'gz' },

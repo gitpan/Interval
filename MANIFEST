@@ -9,3 +9,7 @@ t/03_overload.t
 t/04_allen.t
 t/05_class_met.t
 t/06_int_types.t
+t/07_time.t
+t/08_relative.t
+t/09_rel_allen.t
+
